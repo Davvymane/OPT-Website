@@ -1,17 +1,27 @@
 # Solving support vector machine using real datasets
 
+import os
 import numpy as np
 import scipy.io as sio
-from funcSVM import funcSVM
-from NM01 import NM01
-from normalization import normalization
+from solver.examples.svm.funcSVM import funcSVM
+from solver.NM01 import NM01
+from solver.examples.svm.normalization import normalization
 
-test = 1
+test = 0
 data = ['arce', 'fabc']
 prob = data[test]
 
-samp = sio.loadmat(f'{prob}.mat')         
-label = sio.loadmat(f'{prob}_class.mat')  
+# Expect files like 'arce.mat' and 'arce_class.mat' alongside this script
+script_dir = os.path.dirname(__file__)
+feat_path = os.path.join(script_dir, f"{prob}.mat")
+label_path = os.path.join(script_dir, f"{prob}_class.mat")
+if not (os.path.exists(feat_path) and os.path.exists(label_path)):
+    raise FileNotFoundError(
+        f"Dataset files not found: '{feat_path}', '{label_path}'. "
+        "Place them alongside this script or update the paths.")
+
+samp = sio.loadmat(feat_path)
+label = sio.loadmat(label_path)
 
 A = normalization(samp['X'], 2)
 c = label['y'].flatten()
@@ -20,7 +30,7 @@ m, n0 = A.shape
 
 func = lambda x, key: funcSVM(x, key, 1e-4, A, c)
 B = (-c[:, None]) * np.hstack((A, np.ones((m, 1))))
-b = np.ones((m, 1))
+b = np.ones(m)
 
 pars = {}
 pars['tau'] = 1

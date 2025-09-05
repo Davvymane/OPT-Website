@@ -2,8 +2,8 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from funcSVM import funcSVM
-from NM01 import NM01
+from solver.examples.svm.funcSVM import funcSVM
+from solver.NM01 import NM01
 
 a = 10
 A = np.array([[0, 0], [0, 1], [1, 0], [1, a]])

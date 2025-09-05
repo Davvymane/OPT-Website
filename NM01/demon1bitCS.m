@@ -1,5 +1,6 @@
 % Solving 1 bit compressive sensing using randomly generated data 
-clc; close all; clear all; addpath(genpath(pwd));
+clc; close all; clear all; addpath(genpath(pwd)); %#ok<CLALL>
+
 
 n            = 1000; 
 m            = ceil(0.5*n);

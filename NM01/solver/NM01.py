@@ -49,9 +49,13 @@ def NM01(func, B, b, lam, pars):
 
     t0 = time.time()
     m, n = B.shape
+    # Ensure b is a 1-D vector to avoid broadcasting to (m, m)
+    if b is not None:
+        b = np.asarray(b).reshape(-1)
     maxit, tau, mu, x, tol, tolcg, strict = GetParameters(m, n, pars)
 
-    Fnorm = lambda var: np.linalg.norm(var, 'fro') ** 2
+   # Fnorm = lambda var: np.linalg.norm(var, 'fro') ** 2
+    Fnorm = lambda var: np.sum(var**2)
     obje = lambda var: func(var, 'f')
     grad = lambda var: func(var, 'g')
     Hess = lambda var: func(var, 'h')
@@ -122,7 +126,7 @@ def NM01(func, B, b, lam, pars):
         if stop:
             if iter > 10 and iter % 10 != 0:
                 print(f"  {iter:3d}     {Acc[iter]:8.3f}      {Obj[iter]:8.4f}     {error:8.3e}      {time.time() - t0:.3f}sec")
-            break
+            break 
 
         if empT:
             u = -g
@@ -133,7 +137,7 @@ def NM01(func, B, b, lam, pars):
                 u = np.linalg.solve(BT.T @ BT + mu * H, -mu * rhs1 - fBTt(rhs2))
                 v = -z
                 v[T] = (fBT(u) + rhs2) / mu
-            elif not callable(H) and n > 1e3 and np.all(np.diag(H)) and n <= 5e3:
+            elif not callable(H) and n > 1e3 and np.allclose(H, np.diag(np.diag(H))) and n <= 5e3:
                 invH = np.diag(H)
                 invH[np.abs(invH) < 1e-8] = 1e-4 / iter
                 invH = 1.0 / invH
@@ -204,7 +208,8 @@ def Ttau(Bxz, Bxb, tau, lam):
     if empT:
         zp = Bxb[Bxb >= 0]
         if zp.size > 0:
-            s = int(np.ceil(0.01 * zp.size))
+            # MATLAB: s = ceil(0.01*nnz(zp)); use 1-based index -> Python 0-based
+            s = max(0, min(zp.size - 1, int(np.ceil(0.01 * zp.size)) - 1))
             tau = (zp[s]) ** 2 / (2 * lam)
             tl = np.sqrt(tau * lam / 2)
             T = np.where(np.abs(Bxb - tl) < tl)[0]
@@ -222,14 +227,16 @@ def Initialam(m, n, z, tau):
 
 # conjugate gradient
 def my_cg(fx, b, cgtol, cgit, x):
-    if np.linalg.norm(b, 'fro') == 0:
+    #if np.linalg.norm(b, 'fro') == 0:
+    if np.linalg.norm(b) == 0:
         return np.zeros_like(x)
     if not callable(fx):
         fx = lambda v: fx @ v
     r = b.copy()
     if np.count_nonzero(x) > 0:
         r = b - fx(x)
-    e = np.linalg.norm(r, 'fro') ** 2
+    #e = np.linalg.norm(r, 'fro') ** 2
+    e = np.linalg.norm(r) ** 2
     t = e
     p = r.copy()
     for _ in range(cgit):
@@ -241,6 +248,7 @@ def my_cg(fx, b, cgtol, cgit, x):
         x = x + a * p
         r = r - a * w
         e0 = e
-        e = np.linalg.norm(r, 'fro') ** 2
+        #e = np.linalg.norm(r, 'fro') ** 2
+        e = np.linalg.norm(r) ** 2
         p = r + (e / e0) * p
     return x

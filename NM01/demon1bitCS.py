@@ -1,10 +1,10 @@
 # Solving 1 bit compressive sensing using randomly generated data
 
-from func1bcs import func1BCS
-from refine import refine
-from NM01 import NM01
-from plotting import plot_recovery
-from datageneration1bcs import datageneration1BCS
+from solver.examples.onebcs.func1BCS import func1BCS
+from solver.examples.onebcs.refine import refine
+from solver.NM01 import NM01
+from solver.examples.onebcs.PlotRecovery import plot_recovery
+from solver.examples.onebcs.random1bcs import datageneration1BCS
 
 import numpy as np
 
@@ -18,7 +18,8 @@ A, c, co, xo = datageneration1BCS('Ind', m, n, s, nf, r, 0.5)  # data generation
 
 func = lambda x, key: func1BCS(x, key, 1e-5, 0.5, A, c)
 B = (-c[:, None]) * A
-b = (n * 8e-5) * np.ones((m, 1))
+# Ensure b is 1-D to match B @ x shape (m,)
+b = (n * 8e-5) * np.ones(m)
 lam = 1
 
 pars = {}

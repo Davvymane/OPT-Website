@@ -1,59 +1,49 @@
 import numpy as np
-import time
-from scipy.sparse import diags
+from scipy import sparse as sp
 
 def normalization(X, normal_type):
-    # This file aims to normalize the input matrix X;
-    # Inputs:
-    #       X           -- an (m x n) order matrix that will be normalized;
-    #       normal_type -- type of normalization
-    #                      =0; no normalization, i.e., NX=X;
-    #                      =1; sample(row)-wise and then feature(column)-wise
-    #                          normalization. This is better for the case when n<1000;
-    #                      =2; feature(column)-wisely scaled to [-1,1], typically for logistic regression problem
-    #                      =3; feature(column)-wisely scaled to unit norm columns, typically for CS problem
-    # Outputs:
-    #       NX           --  normalized m x n order matrix
+    """
+    Normalize input matrix X.
 
-    t0 = time.time()
-    if normal_type == 0:  # No normalization
-        NX = X
-
+    normal_type:
+      0: no normalization
+      1: row-wise standardize, then column-wise standardize
+      2: feature-wise scale to [-1, 1] (by dividing each column by its max abs)
+      3: feature-wise scale to unit-norm columns
+    """
+    # Ensure dense float array (MATLAB .mat may store sparse)
+    if sp.issparse(X):
+        X = X.toarray()
+    X = np.asarray(X, dtype=float)
+    if normal_type == 0:
+        NX = X.copy()
     elif normal_type == 1:
-        C = X - np.mean(X, axis=1, keepdims=True)
-        Yrow = C / np.std(X, axis=1, ddof=0, keepdims=True)  # Sample-wise  normalization
+        # Row-wise
+        row_mean = X.mean(axis=1, keepdims=True)
+        row_std = X.std(axis=1, ddof=0, keepdims=True)
+        row_std[row_std == 0] = 1.0
+        Yrow = (X - row_mean) / row_std
+        # Column-wise on transposed then transpose back
         Y = Yrow.T
-        D = Y - np.mean(Y, axis=1, keepdims=True)
-        Ycol = D / np.std(Y, axis=1, ddof=0, keepdims=True)  # Feature-wise normalization
+        col_mean = Y.mean(axis=1, keepdims=True)
+        col_std = Y.std(axis=1, ddof=0, keepdims=True)
+        col_std[col_std == 0] = 1.0
+        Ycol = (Y - col_mean) / col_std
         NX = Ycol.T
+        # Fallback if NaNs appear
         if np.isnan(NX).any():
-            nX = 1.0 / np.sqrt(np.sum(X * X, axis=0))
-            lX = len(nX)
-            NX = X @ diags(nX, offsets=0, shape=(lX, lX)).toarray()
-
+            nX = 1.0 / np.sqrt((X * X).sum(axis=0))
+            nX[~np.isfinite(nX)] = 0.0
+            NX = X * nX
     else:
         if normal_type == 2:
-            nX = 1.0 / np.max(np.abs(X), axis=0)  # Feature-wisely scaled to [-1,1],
+            # Scale each feature by max abs to fit into [-1, 1]
+            nX = 1.0 / np.maximum(np.abs(X), 1e-12).max(axis=0)
         else:
-            nX = 1.0 / np.sqrt(np.sum(X * X, axis=0))  # Feature-wisely scaled to has unit norm columns,
+            # Unit norm columns
+            nX = 1.0 / np.sqrt((X * X).sum(axis=0))
+        nX[~np.isfinite(nX)] = 0.0
+        NX = X * nX
 
-        lX = len(nX)
-        if lX <= 10000:
-            NX = X @ diags(nX, offsets=0, shape=(lX, lX)).toarray()
-        else:  # If lX is too large, seperate X into
-            k = int(5e3)  # sveral smaller sub-matrices.
-            if np.count_nonzero(X) / lX / lX < 1e-4:
-                k = int(1e5)
-            K = int(np.ceil(lX / k))
-            for i in range(K - 1):
-                T = np.arange(i * k, (i + 1) * k)
-                X[:, T] = X[:, T] @ diags(nX[T], offsets=0, shape=(k, k)).toarray()
-            T = np.arange((K - 1) * k, lX)
-            k0 = len(T)
-            X[:, T] = X[:, T] @ diags(nX[T], offsets=0, shape=(k0, k0)).toarray()
-            NX = X
-
-    NX[np.isnan(NX)] = 0
-    print(" Nomorlization used %2.4f seconds." % (time.time() - t0))
-
+    NX = np.nan_to_num(NX, nan=0.0, posinf=0.0, neginf=0.0)
     return NX

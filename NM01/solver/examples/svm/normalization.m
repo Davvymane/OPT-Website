@@ -54,6 +54,6 @@ else
     end
 end
 NX(isnan(NX))=0;
-fprintf(' Nomorlization used %2.4f seconds.\n',toc(t0)); 
+fprintf(' Normalization used %2.4f seconds.\n',toc(t0)); 
 
 end
